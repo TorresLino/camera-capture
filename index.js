@@ -1,4 +1,4 @@
-import * as Webcam from 'node-webcam'
+import Webcam from 'node-webcam'
 import * as fs from 'fs'
 import * as cron from 'node-cron'
 
