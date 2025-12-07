@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "description": "",
   "scripts": {
-    "start": "dotenv -e .env node index.js"
+    "start": "dotenv -e .env node index.js",
+    "save": "dotenv -e .env node saveDayScript.js"
   },
   "keywords": [],
   "author": "torreslino",

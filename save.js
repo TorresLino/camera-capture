@@ -24,7 +24,7 @@ const runCommand = (command) => {
     })
 }
 
-const save = async () => {
+const save = async (day = undefined) => {
     if (SAVE_DIR == null || SAVE_DIR.trim().length === 0) {
         throw new Error('Please specify a directory for saving the videos by setting "SAVE_DIR" in the .env file.')
     }
@@ -33,7 +33,7 @@ const save = async () => {
         throw new Error('Please specify a directory for where the images are saved by setting "CAPTURE_DIR" in the .env file.')
     }
 
-    const todayString = dayjs().format('YYYY-MM-DD')
+    const todayString = day ?? dayjs().format('YYYY-MM-DD')
     const regexPattern = `^${todayString}[T].*\\.jpg$`
     const regex = new RegExp(regexPattern)
     const files = await promises.readdir(CAPTURE_DIR)
