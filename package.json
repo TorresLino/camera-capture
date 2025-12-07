@@ -1,0 +1,21 @@
+{
+  "name": "camera",
+  "version": "1.0.0",
+  "description": "",
+  "scripts": {
+    "start": "dotenv -e .env node index.js"
+  },
+  "keywords": [],
+  "author": "torreslino",
+  "license": "MIT",
+  "type": "module",
+  "volta": {
+    "node": "24.11.1",
+    "npm": "11.6.4"
+  },
+  "dependencies": {
+    "dotenv-cli": "^11.0.0",
+    "node-cron": "^4.2.1",
+    "node-webcam": "^0.8.2"
+  }
+}
