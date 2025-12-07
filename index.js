@@ -34,31 +34,31 @@ const parseInt = (value) => {
 
 fs.mkdirSync(SAVE_DIR, { recursive: true })
 
-const options = {
-    saveShots: true,
-    output: SAVE_DIR,
-    filename,
-
-    width: parseInt(WIDTH),
-    height: parseInt(HEIGHT),
-    quality: parseInt(QUALITY),
-    delay: parseInt(DELAY),
-
-    external: false,
-    callbackReturn: 'location',
-
-    device: DEVICE,
-    verbose: false,
-    frames: parseInt(FRAMES),
-    skip: parseInt(SKIP),
-    configure: {
-        '--no-banner': ''
-    }
-}
-
 const capture = () => {
     const now = new Date()
     const filename = `${now.getFullYear()}-${now.getMonth()}-${now.getDay()}T${now.getHours()}:${now.getMinutes()}:00`
+
+    const options = {
+        saveShots: true,
+        output: SAVE_DIR,
+        filename,
+
+        width: parseInt(WIDTH),
+        height: parseInt(HEIGHT),
+        quality: parseInt(QUALITY),
+        delay: parseInt(DELAY),
+
+        external: false,
+        callbackReturn: 'location',
+
+        device: DEVICE,
+        verbose: false,
+        frames: parseInt(FRAMES),
+        skip: parseInt(SKIP),
+        configure: {
+            '--no-banner': ''
+        }
+    }
 
     const client = Webcam.create(options)
 
