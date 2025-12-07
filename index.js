@@ -1,5 +1,5 @@
-import capture from './capture'
-import save from './save'
+import capture from './capture.js'
+import save from './save.js'
 import * as cron from 'node-cron'
 
 const {
@@ -9,3 +9,4 @@ const {
 
 cron.schedule(CAPTURE_CRON_SCHEDULE, capture)
 cron.schedule(SAVE_CRON_SCHEDULE, save)
+

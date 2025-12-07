@@ -57,14 +57,14 @@ const save = async () => {
     console.log('Saving video...')
     const videoPath = path.join(SAVE_DIR, videoName)
 
-    const fileListContent = todaysImages.map(file => `file '${path.join(IMAGE_DIR, file)}'`).join('\n')
+    const fileListContent = todaysImages.map(file => `file '${path.join(CAPTURE_DIR, file)}'`).join('\n')
     const listFilePath = path.join('/tmp', `filelist_${todayString}.txt`)
     await promises.writeFile(listFilePath, fileListContent)
 
     const ffmpegCommand = `ffmpeg -f concat -safe 0 -r ${SAVE_FRAME_RATE} -i ${listFilePath} -c:v libx264 -pix_fmt yuv420p ${videoPath} -y`
     await runCommand(ffmpegCommand)
 
-    await fs.unlink(listFilePath)
+    await promises.unlink(listFilePath)
     console.log(`Video saved successfully: ${videoName}`)
 
     console.log('Compressing used images...')
