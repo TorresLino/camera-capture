@@ -2,6 +2,7 @@ import Webcam from 'node-webcam'
 import * as fs from 'fs'
 import * as cron from 'node-cron'
 import * as path from 'path'
+import dayjs from 'dayjs'
 
 const {
     SAVE_DIR,
@@ -35,8 +36,7 @@ const parseInt = (value) => {
 fs.mkdirSync(SAVE_DIR, { recursive: true })
 
 const capture = () => {
-    const now = new Date()
-    const filename = `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDay()}T${now.getHours()}:${now.getMinutes()}:00.jpg`
+    const filename = `${dayjs().format('YYYY-MM-DDTHH:mm:ss')}.jpg`
     const location = path.join(SAVE_DIR, filename)
 
     const options = {
@@ -70,4 +70,3 @@ const capture = () => {
 }
 
 cron.schedule(CRON_SCHEDULE, capture)
-
