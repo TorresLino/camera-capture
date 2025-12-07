@@ -1,16 +1,16 @@
 import Webcam from 'node-webcam'
 import * as fs from 'fs'
 import * as cron from 'node-cron'
+import * as path from 'path'
 
 const {
     SAVE_DIR,
     WIDTH = '1920',
     HEIGHT = '1080',
     QUALITY = '90',
-    DELAY = '2',
     DEVICE = '/dev/video0',
     FRAMES = '1',
-    SKIP = '10',
+    SKIP = '60',
     CRON_SCHEDULE = '*/2 * * * *'
 } = process.env
 
@@ -36,17 +36,14 @@ fs.mkdirSync(SAVE_DIR, { recursive: true })
 
 const capture = () => {
     const now = new Date()
-    const filename = `${now.getFullYear()}-${now.getMonth()}-${now.getDay()}T${now.getHours()}:${now.getMinutes()}:00`
+    const filename = `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDay()}T${now.getHours()}:${now.getMinutes()}:00.jpg`
+    const location = path.join(SAVE_DIR, filename)
 
     const options = {
-        saveShots: true,
-        output: SAVE_DIR,
-        filename,
-
         width: parseInt(WIDTH),
         height: parseInt(HEIGHT),
         quality: parseInt(QUALITY),
-        delay: parseInt(DELAY),
+        output: 'jpeg',
 
         external: false,
         callbackReturn: 'location',
@@ -62,13 +59,15 @@ const capture = () => {
 
     const client = Webcam.create(options)
 
-    client.capture('temp_shot', (error, data) => {
+    client.capture(location, (error, data) => {
         if (error) {
+	    console.error(error)
             throw new Error('Failed capturing image: ', error)
         }
 
-        console.log(`Image saved successfully: ${SAVE_DIR}/${filename}`)
+        console.log(`Image saved successfully: ${location}`)
     })
 }
 
 cron.schedule(CRON_SCHEDULE, capture)
+
