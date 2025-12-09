@@ -8,5 +8,5 @@ const {
 } = process.env
 
 cron.schedule(CAPTURE_CRON_SCHEDULE, capture)
-cron.schedule(SAVE_CRON_SCHEDULE, save)
+cron.schedule(SAVE_CRON_SCHEDULE, () => { save() })
 
