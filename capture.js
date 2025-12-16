@@ -10,7 +10,8 @@ const {
     QUALITY = '90',
     DEVICE = '/dev/video0',
     FRAMES = '1',
-    SKIP = '60'
+    SKIP = '60',
+    EXPOSURE_TIME
 } = process.env
 
 const parseInt = (value) => {
@@ -52,6 +53,13 @@ const capture = () => {
         configure: {
             '--no-banner': ''
         }
+    }
+
+    if (EXPOSURE_TIME != null && EXPOSURE_TIME.trim().length > 0) {
+        options.configure['--set'] = [
+            `Auto Exposure=1`,
+            `Exposure Time, Absolute=${parseInt(EXPOSURE_TIME)}`
+        ]
     }
 
     const client = Webcam.create(options)
