@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Humidity Monitor</title>
+    <style>
+        body { font-family: system-ui, sans-serif; background: #0f172a; color: #f8fafc; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .card { background: #1e293b; padding: 2rem; border-radius: 1rem; box-shadow: 0 10px 25px rgba(0,0,0,0.3); width: 350px; text-align: center; }
+        h2 { margin-top: 0; color: #38bdf8; }
+        .metric { font-size: 2.5rem; font-weight: bold; margin: 0.5rem 0; }
+        .status { padding: 0.5rem 1rem; border-radius: 999px; display: inline-block; font-weight: bold; margin-top: 1rem; }
+        .normal { background: #065f46; color: #34d399; }
+        .high { background: #7f1d1d; color: #f87171; }
+        .low { background: #1e3a8a; color: #60a5fa; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h2>Monitor</h2>
+        <div>Humidity</div>
+        <div class="metric" id="humidity">--%</div>
+        <div>Temperature</div>
+        <div class="metric" id="temperature" style="font-size: 1.8rem; color: #cbd5e1;">--°C</div>
+        <div id="statusBadge" class="status normal">Loading...</div>
+    </div>
+
+    <script>
+        let audioCtx = null
+
+        function playBeep(type) {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)()
+            const osc = audioCtx.createOscillator()
+            const gain = audioCtx.createGain()
+            osc.connect(gain)
+            gain.connect(audioCtx.destination)
+
+            if (type === 'high') {
+                osc.frequency.setValueAtTime(880, audioCtx.currentTime) // High pitch for high humidity
+            } else if (type === 'low') {
+                osc.frequency.setValueAtTime(300, audioCtx.currentTime) // Low pitch for low humidity
+            }
+
+            gain.gain.setValueAtTime(0.1, audioCtx.currentTime)
+            osc.start()
+            osc.stop(audioCtx.currentTime + 0.3)
+        }
+
+        const evtSource = new EventSource('/stream')
+        let lastState = 'normal'
+
+        evtSource.onmessage = function(event) {
+            const data = JSON.parse(event.data)
+            document.getElementById('humidity').innerText = data.humidity.toFixed(1) + '%'
+            document.getElementById('temperature').innerText = data.temperature.toFixed(1) + '°C'
+
+            const badge = document.getElementById('statusBadge')
+            badge.className = 'status ' + data.state
+            badge.innerText = data.statusText
+
+            if (data.state !== lastState && data.state !== 'normal') {
+                playBeep(data.state)
+            }
+            lastState = data.state
+        };
+    </script>
+</body>
+</html>
