@@ -46,7 +46,7 @@
             osc.stop(audioCtx.currentTime + 0.3)
         }
 
-        const evtSource = new EventSource('/stream')
+        const evtSource = new EventSource('./stream')
         let lastState = 'normal'
 
         evtSource.onmessage = function(event) {
