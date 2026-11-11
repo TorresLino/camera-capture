@@ -10,7 +10,7 @@ const app = express()
 const PORT = process.env.PORT || 3000
 
 // Parameterized configuration values from env or defaults
-const POLL_INTERVAL_MS = parseInt(process.env.POLL_INTERVAL_MS, 10) || 1000
+const POLL_INTERVAL_MS = parseInt(process.env.POLL_INTERVAL_MS, 10) || 5000
 const BROADCAST_INTERVAL_MS = parseInt(process.env.BROADCAST_INTERVAL_MS, 10) || 15000
 const HIGH_THRESHOLD = parseFloat(process.env.HIGH_THRESHOLD) || 55.0
 const LOW_THRESHOLD = parseFloat(process.env.LOW_THRESHOLD) || 45.0
@@ -49,6 +49,11 @@ function pollSensor() {
 
     const hum = parseFloat(rawHumid) > 100 ? parseFloat(rawHumid) / 1000 : parseFloat(rawHumid)
     const temp = parseFloat(rawTemp) > 100 ? parseFloat(rawTemp) / 1000 : parseFloat(rawTemp)
+
+    if (isNaN(hum) || isNaN(temp) || temp < 0 || temp > 60 || hum < 0 || hum > 100) {
+      console.warn(`[Sensor Warning] Discarding out-of-bounds reading -> Temp: ${temp}, Humid: ${hum}`)
+      return
+    }
 
     sampleBuffer.push({ humidity: hum, temperature: temp })
     if (sampleBuffer.length > BUFFER_SIZE) {
