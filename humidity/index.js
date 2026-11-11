@@ -1,95 +1,107 @@
-import express from 'express';
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import express from 'express'
+import fs from 'fs'
+import path from 'path'
+import { fileURLToPath } from 'url'
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 
 const app = express()
 const PORT = process.env.PORT || 3000
 
-// RGB LED GPIO Pins (BCM Pin Numbers)
-const PIN_RED = 17
-const PIN_GREEN = 27
-const PIN_BLUE = 22
+// Parameterized configuration values from env or defaults
+const POLL_INTERVAL_MS = parseInt(process.env.POLL_INTERVAL_MS, 10) || 1000
+const BROADCAST_INTERVAL_MS = parseInt(process.env.BROADCAST_INTERVAL_MS, 10) || 15000
+const HIGH_THRESHOLD = parseFloat(process.env.HIGH_THRESHOLD) || 55.0
+const LOW_THRESHOLD = parseFloat(process.env.LOW_THRESHOLD) || 45.0
+
+const BUFFER_SIZE = Math.max(1, Math.round(BROADCAST_INTERVAL_MS / POLL_INTERVAL_MS))
 
 // Linux IIO Sensor paths for DHT11 on Raspberry Pi
 const HUMIDITY_PATH = '/sys/bus/iio/devices/iio:device0/in_humidityrelative_input'
 const TEMP_PATH = '/sys/bus/iio/devices/iio:device0/in_temp_input'
 
-let rpio = null
-let isPi = false
-
-try {
-  rpio = require('rpio')
-  if (fs.existsSync(HUMIDITY_PATH)) {
-    isPi = true
-    rpio.open(PIN_RED, rpio.OUTPUT, rpio.LOW)
-    rpio.open(PIN_GREEN, rpio.OUTPUT, rpio.LOW)
-    rpio.open(PIN_BLUE, rpio.OUTPUT, rpio.LOW)
-    console.log("Hardware GPIO initialized successfully.")
-  } else {
-    console.log("DHT11 sensor device node not found. Running in simulation/development mode.")
-  }
-} catch (e) {
-  console.log("rpio not supported on this architecture. Running in simulation/development mode.")
+if (!fs.existsSync(HUMIDITY_PATH) || !fs.existsSync(TEMP_PATH)) {
+  console.error(`[Fatal Error] DHT11 sensor paths not found at expected IIO locations:`)
+  console.error(`- Humidity: ${HUMIDITY_PATH}`)
+  console.error(`- Temperature: ${TEMP_PATH}`)
+  console.error(`Ensure kernel overlay dtoverlay=dht11 is configured and active.`)
+  process.exit(1)
 }
 
-function setRGBColor(red, green, blue) {
-  if (!isPi || !rpio) return
-  rpio.write(PIN_RED, red ? rpio.HIGH : rpio.LOW)
-  rpio.write(PIN_GREEN, green ? rpio.HIGH : rpio.LOW)
-  rpio.write(PIN_BLUE, blue ? rpio.HIGH : rpio.LOW)
-}
+console.log("DHT11 sensor device nodes verified successfully.")
 
 // Current environmental state
 let currentData = {
-  humidity: 50.0,
-  temperature: 22.0,
+  humidity: 0.0,
+  temperature: 0.0,
   state: 'normal',
-  statusText: 'Normal (45% - 55%)'
+  statusText: `Normal (${LOW_THRESHOLD}% - ${HIGH_THRESHOLD}%)`
 }
 
-// Read Sensor Data every 15 seconds
-function sampleSensor() {
+// Rolling sample window
+let sampleBuffer = []
+
+function pollSensor() {
   try {
-    if (isPi && fs.existsSync(HUMIDITY_PATH)) {
-      const rawHumid = fs.readFileSync(HUMIDITY_PATH, 'utf8').trim()
-      const rawTemp = fs.readFileSync(TEMP_PATH, 'utf8').trim()
+    const rawHumid = fs.readFileSync(HUMIDITY_PATH, 'utf8').trim()
+    const rawTemp = fs.readFileSync(TEMP_PATH, 'utf8').trim()
 
-      currentData.humidity = parseFloat(rawHumid) > 100 ? parseFloat(rawHumid) / 1000 : parseFloat(rawHumid)
-      currentData.temperature = parseFloat(rawTemp) > 100 ? parseFloat(rawTemp) / 1000 : parseFloat(rawTemp)
-    } else {
-      // Simulated fluctuation for local development/testing
-      currentData.humidity = 40 + Math.random() * 25 // Random between 40% and 65%
-      currentData.temperature = 20 + Math.random() * 5
+    const hum = parseFloat(rawHumid) > 100 ? parseFloat(rawHumid) / 1000 : parseFloat(rawHumid)
+    const temp = parseFloat(rawTemp) > 100 ? parseFloat(rawTemp) / 1000 : parseFloat(rawTemp)
+
+    sampleBuffer.push({ humidity: hum, temperature: temp })
+    if (sampleBuffer.length > BUFFER_SIZE) {
+      sampleBuffer.shift()
     }
-
-    // Evaluate thresholds
-    if (currentData.humidity > 55) {
-      currentData.state = 'high'
-      currentData.statusText = 'High Humidity (> 55%)'
-      setRGBColor(true, false, false) // Red
-    } else if (currentData.humidity < 45) {
-      currentData.state = 'low'
-      currentData.statusText = 'Low Humidity (< 45%)'
-      setRGBColor(false, false, true) // Blue
-    } else {
-      currentData.state = 'normal'
-      currentData.statusText = 'Normal (45% - 55%)'
-      setRGBColor(false, true, false) // Green
-    }
-
-    console.log(`[Sensor] Temp: ${currentData.temperature.toFixed(1)}°C | Humidity: ${currentData.humidity.toFixed(1)}% | Status: ${currentData.state}`)
   } catch (err) {
-    console.error('Error reading sensor:', err.message)
+    console.error('[Sensor Error] Failed to read hardware sensor values:', err.message)
+    throw err
   }
 }
 
-// Start sampling interval (15 seconds)
-setInterval(sampleSensor, 15000)
-sampleSensor()
+// Compute average and evaluate thresholds using parameterized limits
+function processAndBroadcast() {
+  if (sampleBuffer.length === 0) return
+
+  const avgHumid = sampleBuffer.reduce((acc, curr) => acc + curr.humidity, 0) / sampleBuffer.length
+  const avgTemp = sampleBuffer.reduce((acc, curr) => acc + curr.temperature, 0) / sampleBuffer.length
+
+  currentData.humidity = avgHumid
+  currentData.temperature = avgTemp
+
+  // Evaluate parameterized thresholds
+  if (currentData.humidity > HIGH_THRESHOLD) {
+    currentData.state = 'high'
+    currentData.statusText = `High Humidity (> ${HIGH_THRESHOLD}%)`
+  } else if (currentData.humidity < LOW_THRESHOLD) {
+    currentData.state = 'low'
+    currentData.statusText = `Low Humidity (< ${LOW_THRESHOLD}%)`
+  } else {
+    currentData.state = 'normal'
+    currentData.statusText = `Normal (${LOW_THRESHOLD}% - ${HIGH_THRESHOLD}%)`
+  }
+
+  console.log(`[Averaged] Temp: ${currentData.temperature.toFixed(1)}°C | Humidity: ${currentData.humidity.toFixed(1)}% | Status: ${currentData.state}`)
+}
+
+try {
+  pollSensor()
+  processAndBroadcast()
+} catch (err) {
+  console.error('[Fatal Error] Initial sensor read failed on startup. Exiting.')
+  process.exit(1)
+}
+
+setInterval(() => {
+  try {
+    pollSensor()
+  } catch (err) {
+    console.error('[Warning] Continuing despite polling error...')
+  }
+}, POLL_INTERVAL_MS)
+
+setInterval(processAndBroadcast, BROADCAST_INTERVAL_MS)
 
 // Serve static frontend files
 app.use(express.static(path.join(__dirname, 'public')))
@@ -118,11 +130,5 @@ app.listen(PORT, () => {
 
 // Cleanup on exit
 process.on('SIGINT', () => {
-  if (isPi && rpio) {
-    setRGBColor(false, false, false)
-    rpio.close(PIN_RED)
-    rpio.close(PIN_GREEN)
-    rpio.close(PIN_BLUE)
-  }
   process.exit()
 })
